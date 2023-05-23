@@ -4,38 +4,39 @@ const openai = require('openai');
 
 const app = express();
 const port = 5001;
-
-const mongoURI = 'mongodb+srv://harry123:7*Q9KMh%409XHW4rg@mongoyoutube.nhtraxd.mongodb.net/chatgpt';
+const mongoURI = 'mongodb://127.0.0.1:27017/chatgpt';
 const mongoClient = new MongoClient(mongoURI);
 
-openai.api_key = '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';
+openai.api_key = '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';
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.get('/', async (req, res) => {
-  try {
+try {
     await mongoClient.connect();
     const db = mongoClient.db();
     const chats = await db.collection('chats').find({}).toArray();
     console.log(chats);
     res.render('index.html', { myChats: chats });
-  } catch (error) {
+} catch (error) {
     console.error(error);
     res.status(500).send('Internal Server Error');
-  }
+}
 });
 
 app.post('/api', async (req, res) => {
-  try {
+try {
     console.log(req.body);
     const question = req.body.question;
-    await mongoClient.connect();
-    const db = mongoClient.db();
+    const db = mongoClient.db(); // Move the db variable outside of the try block
     const chat = await db.collection('chats').findOne({ question });
     console.log(chat);
     if (chat) {
-      const data = { question, answer: chat.answer };
-      res.json(data);
+const data = { question, answer: chat.answer };
+res.json(data);
     } else {
-      const response = await openai.Completion.create({
+const response = await openai.Completion.create({
         model: 'text-davinci-003',
         prompt: question,
         temperature: 0.7,
@@ -43,18 +44,24 @@ app.post('/api', async (req, res) => {
         top_p: 1,
         frequency_penalty: 0,
         presence_penalty: 0,
-      });
-      console.log(response);
-      const data = { question, answer: response.choices[0].text };
-      await db.collection('chats').insertOne({ question, answer: response.choices[0].text });
-      res.json(data);
+});
+console.log(response);
+const data = { question, answer: response.choices[0].text };
+await db.collection('chats').insertOne({ question, answer: response.choices[0].text });
+res.json(data);
     }
-  } catch (error) {
+} catch (error) {
     console.error(error);
     res.status(500).send('Internal Server Error');
-  }
+}
 });
 
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+mongoClient.connect((err) => {
+if (err) {
+    console.error('Error connecting to MongoDB:', err);
+} else {
+    app.listen(port, () => {
+console.log(`Server is running on port ${port}`);
+    });
+}
 });
